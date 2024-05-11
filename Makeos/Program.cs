@@ -1,6 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
 //license key
+Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NBaF1cXmhMYVJxWmFZfVpgc19HYVZUQWY/P1ZhSXxXdkBiWX5XcXVQQ2VaUkE=");
 
 
 // Add services to the container.

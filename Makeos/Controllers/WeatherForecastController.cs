@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Tesseract;
+using Microsoft.AspNetCore.Http;
+using Syncfusion.Pdf.Parsing;
+using System;
+using System.IO;
+using Syncfusion.Pdf;
 
 namespace Makeos.Controllers
 {
@@ -15,49 +19,44 @@ namespace Makeos.Controllers
         }
 
         [HttpPost]
-        public ActionResult GetTextFromImage(IFormFile image)
+        public ActionResult GetTextFromPdf(IFormFile file)
         {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No se proporcionó ningún archivo PDF.");
+            }
+
             try
             {
-                // Check if the image is not null and it has content
-                if (image != null && image.Length > 0)
+                using (MemoryStream pdfStream = new MemoryStream())
                 {
-                    using (var stream = new MemoryStream())
-                    {
-                        // Copy the image stream to a memory stream
-                        image.CopyTo(stream);
+                    file.CopyTo(pdfStream);
+                    pdfStream.Position = 0;
 
-                        // Reset the stream position to start
-                        stream.Position = 0;
+                    // Load the PDF document
+                    PdfLoadedDocument lDoc = new PdfLoadedDocument(pdfStream);
 
-                        // Initialize Tesseract engine
-                        using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
-                        {
-                            using (var img = Pix.LoadFromFile(image.FileName))
-                            {
-                                using (var page = engine.Process(img))
-                                {
-                                    // Get the extracted text
-                                    var extractedText = page.GetText();
+                    string extractedText = ExtractTextFromPdf(lDoc);
 
-                                    // You can do further processing with the extracted text here
-                                    // For example, return it as JSON
-                                    return Ok(new { Text = extractedText });
-                                }
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    return BadRequest("Image file is empty.");
+                    return Ok(extractedText);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while processing the image.");
-                return StatusCode(500, "Internal server error");
+                return StatusCode(500, $"Se produjo un error al procesar el OCR: {ex.Message}");
             }
+        }
+
+        private string ExtractTextFromPdf(PdfLoadedDocument pdfDocument)
+        {
+            string extractedText = string.Empty;
+
+            foreach (PdfLoadedPage loadedPage in pdfDocument.Pages)
+            {
+                extractedText += loadedPage.ExtractText();
+            }
+
+            return extractedText;
         }
     }
 }
