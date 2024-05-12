@@ -10,8 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
+    <PackageReference Include="PdfPig" Version="0.1.8" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
-    <PackageReference Include="Syncfusion.PDF.OCR.Net.Core" Version="25.2.3" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
