@@ -4,6 +4,7 @@ using UglyToad.PdfPig;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.IO;
+using Makeos.Models;
 
 namespace Makeos.Controllers
 {
@@ -28,6 +29,7 @@ namespace Makeos.Controllers
 
             try
             {
+                PDF_Info pdfInfo = new PDF_Info();
                 using (var memoryStream = new MemoryStream())
                 {
                     file.CopyTo(memoryStream);
@@ -35,19 +37,30 @@ namespace Makeos.Controllers
 
                     using (PdfDocument document = PdfDocument.Open(memoryStream))
                     {
-                        string text = "";
+                        pdfInfo.PDF_Name = file.FileName;
+                        pdfInfo.Total_Pages = document.NumberOfPages;
+                        pdfInfo.Pages = new List<PAGE_Info>();
 
                         for (var i = 0; i < document.NumberOfPages; i++)
                         {
                             var page = document.GetPage(i + 1);
-
+                            PAGE_Info page_info = new PAGE_Info();
+                            page_info.Page_number = page.Number;
+                            page_info.Words = new List<WORD_Info>();
                             foreach (var word in page.GetWords())
                             {
-                                text += word.Text + " ";
+                                WORD_Info word_info = new WORD_Info();
+                                word_info.Word = word.Text;
+                                word_info.xmin = word.BoundingBox.BottomLeft.X;
+                                word_info.ymin = word.BoundingBox.BottomLeft.Y;
+                                word_info.xmax = word.BoundingBox.TopRight.X;
+                                word_info.ymax = word.BoundingBox.TopRight.Y;
+                                page_info.Words.Add(word_info);
                             }
+                            pdfInfo.Pages.Add(page_info);
                         }
 
-                        return Ok(text);
+                        return Ok(pdfInfo);
                     }
                 }
             }
