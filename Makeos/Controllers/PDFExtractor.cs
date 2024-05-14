@@ -51,10 +51,10 @@ namespace Makeos.Controllers
                             {
                                 WORD_Info word_info = new WORD_Info();
                                 word_info.Word = word.Text;
-                                word_info.xmin = word.BoundingBox.BottomLeft.X;
-                                word_info.ymin = word.BoundingBox.BottomLeft.Y;
-                                word_info.xmax = word.BoundingBox.TopRight.X;
-                                word_info.ymax = word.BoundingBox.TopRight.Y;
+                                word_info.xmin = (int)word.BoundingBox.BottomLeft.X;
+                                word_info.ymin = (int)word.BoundingBox.BottomLeft.Y;
+                                word_info.xmax = (int)word.BoundingBox.TopRight.X;
+                                word_info.ymax = (int)word.BoundingBox.TopRight.Y;
                                 page_info.Words.Add(word_info);
                             }
                             pdfInfo.Pages.Add(page_info);

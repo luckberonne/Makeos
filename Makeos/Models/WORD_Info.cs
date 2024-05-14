@@ -3,9 +3,9 @@
     public class WORD_Info
     {
         public string Word { get; set; }
-        public double xmin { get; set; }
-        public double ymin { get; set; }
-        public double xmax { get; set; }
-        public double ymax { get; set; }
+        public int xmin { get; set; }
+        public int ymin { get; set; }
+        public int xmax { get; set; }
+        public int ymax { get; set; }
     }
 }
