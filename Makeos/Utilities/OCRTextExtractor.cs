@@ -6,7 +6,7 @@ namespace Makeos.Utilities
     {
         public static string ExtractTextFromImage(Stream imageStream)
         {
-            var ocrEngine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default);
+            var ocrEngine = new TesseractEngine(@"./Data/tessdata", "eng", EngineMode.Default);
             using (var img = Pix.LoadFromMemory(ReadToEnd(imageStream)))
             {
                 using (var page = ocrEngine.Process(img))
