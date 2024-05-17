@@ -1,5 +1,6 @@
 ﻿using Makeos.Models;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 
 namespace Makeos.Utilities
 {
@@ -17,6 +18,11 @@ namespace Makeos.Utilities
                 for (var i = 0; i < document.NumberOfPages; i++)
                 {
                     var page = document.GetPage(i + 1);
+                    IEnumerable<IPdfImage> images = page.GetImages();
+                    IPdfImage image = images.FirstOrDefault();
+                    Stream imageStream = new MemoryStream(image.RawBytes.ToArray());
+
+                    OCRTextExtractor.ExtractTextFromImage(imageStream);
                     PageInfo pageInfo = new PageInfo
                     {
                         PageNumber = page.Number,
