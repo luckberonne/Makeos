@@ -22,11 +22,19 @@ namespace Makeos.Utilities
                     IPdfImage image = images.FirstOrDefault();
                     Stream imageStream = new MemoryStream(image.RawBytes.ToArray());
 
-                    OCRTextExtractor.ExtractTextFromImage(imageStream);
+                    string ocrText = OCRTextExtractor.ExtractTextFromImage(imageStream);
                     PageInfo pageInfo = new PageInfo
                     {
                         PageNumber = page.Number,
-                        Words = new List<WordInfo>()
+                        Words = new List<WordInfo>(),
+                        OCRText = new OCRTextInfo
+                        {
+                            OCRText = ocrText,
+                            XMin = (int)image.Bounds.BottomLeft.X,
+                            YMin = (int)image.Bounds.BottomLeft.Y,
+                            XMax = (int)image.Bounds.TopRight.X,
+                            YMax = (int)image.Bounds.TopRight.Y
+                        }
                     };
 
                     foreach (var word in page.GetWords())
