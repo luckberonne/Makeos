@@ -14,29 +14,37 @@ namespace Makeos.Utilities
             {
                 pdfInfo.TotalPages = document.NumberOfPages;
                 pdfInfo.Pages = new List<PageInfo>();
-
+                // segmentar el código en métodos más pequeños
                 for (var i = 0; i < document.NumberOfPages; i++)
                 {
                     var page = document.GetPage(i + 1);
-                    IEnumerable<IPdfImage> images = page.GetImages();
-                    IPdfImage image = images.FirstOrDefault();
-                    Stream imageStream = new MemoryStream(image.RawBytes.ToArray());
-
-                    string ocrText = OCRTextExtractor.ExtractTextFromImage(imageStream);
                     PageInfo pageInfo = new PageInfo
                     {
                         PageNumber = page.Number,
                         Words = new List<WordInfo>(),
-                        OCRText = new OCRTextInfo
-                        {
-                            OCRText = ocrText,
-                            XMin = (int)image.Bounds.BottomLeft.X,
-                            YMin = (int)image.Bounds.BottomLeft.Y,
-                            XMax = (int)image.Bounds.TopRight.X,
-                            YMax = (int)image.Bounds.TopRight.Y
-                        }
+                        OCRText = new List<OCRTextInfo>()
                     };
 
+                    IEnumerable<IPdfImage> images = page.GetImages();
+                    if (images != null)
+                    {
+                        foreach (var image in images)
+                        {
+                            Stream imageStream = new MemoryStream(image.RawBytes.ToArray());
+
+                            string ocrText = OCRTextExtractor.ExtractTextFromImage(imageStream);
+                            
+                            OCRTextInfo ocrTextInfo = new OCRTextInfo
+                            {
+                                OCRText = ocrText,
+                                XMin = (int)image.Bounds.BottomLeft.X,
+                                YMin = (int)image.Bounds.BottomLeft.Y,
+                                XMax = (int)image.Bounds.TopRight.X,
+                                YMax = (int)image.Bounds.TopRight.Y
+                            };
+                            pageInfo.OCRText.Add(ocrTextInfo);
+                        }
+                    }
                     foreach (var word in page.GetWords())
                     {
                         WordInfo wordInfo = new WordInfo
