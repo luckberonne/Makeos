@@ -9,16 +9,26 @@ namespace Makeos.Services
         {
             if (file == null || file.Length == 0)
             {
-                throw new ArgumentException("No se proporcionó ningún archivo PDF.");
+                throw new ArgumentException("El archivo proporcionado está vacío o es nulo.");
             }
 
-            using (var memoryStream = new MemoryStream())
+            if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("El archivo proporcionado no tiene un formato PDF válido.");
+            }
+
+            await using var memoryStream = new MemoryStream();
+            try
             {
                 await file.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
 
-                PDFInfo PDF_Info = PDFTextExtractor.ExtractText(memoryStream);
-                return PDF_Info;
+                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream);
+                return pdfInfo;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error al procesar el archivo PDF.", ex);
             }
         }
     }

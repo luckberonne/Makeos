@@ -15,11 +15,13 @@ namespace Makeos.Controllers
     {
         private readonly ILogger<PDFExtractorController> _logger;
         private readonly IPDFExtractorService _pdfExtractorService;
+        private readonly IAIInvoiceService _aiInvoiceService;
 
-        public PDFExtractorController(ILogger<PDFExtractorController> logger, IPDFExtractorService pdfExtractorService)
+        public PDFExtractorController(ILogger<PDFExtractorController> logger, IPDFExtractorService pdfExtractorService, IAIInvoiceService aIInvoiceService)
         {
             _logger = logger;
             _pdfExtractorService = pdfExtractorService;
+            _aiInvoiceService = aIInvoiceService;
         }
 
         [HttpPost]
@@ -28,6 +30,8 @@ namespace Makeos.Controllers
             try
             {
                 var pdfInfo = await _pdfExtractorService.ExtractTextAsync(file);
+                var invoiceInfo = await _aiInvoiceService.ExtractInvoiceInfoAsync(pdfInfo);
+
                 return Ok(pdfInfo);
             }
             catch (ArgumentException ex)
