@@ -5,6 +5,13 @@ namespace Makeos.Services
 {
     public class PDFExtractorService : IPDFExtractorService
     {
+        private readonly string _ocrLanguages;
+
+        public PDFExtractorService(IConfiguration configuration)
+        {
+            _ocrLanguages = configuration["Ocr:Languages"] ?? OCRTextExtractor.DefaultLanguage;
+        }
+
         public async Task<PDFInfo> ExtractTextAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -28,7 +35,7 @@ namespace Makeos.Services
 
             try
             {
-                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream);
+                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream, _ocrLanguages);
                 pdfInfo.PDFName = file.FileName;
                 return pdfInfo;
             }

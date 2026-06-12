@@ -8,6 +8,13 @@ namespace Makeos.Services
         private static readonly string[] AllowedExtensions =
             { ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp" };
 
+        private readonly string _ocrLanguages;
+
+        public ImageExtractorService(IConfiguration configuration)
+        {
+            _ocrLanguages = configuration["Ocr:Languages"] ?? OCRTextExtractor.DefaultLanguage;
+        }
+
         public async Task<ImageInfo> ExtractTextAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -31,7 +38,7 @@ namespace Makeos.Services
 
             try
             {
-                using var ocr = new OCRTextExtractor();
+                using var ocr = new OCRTextExtractor(_ocrLanguages);
                 var (text, width, height) = ocr.Recognize(imageBytes);
 
                 return new ImageInfo

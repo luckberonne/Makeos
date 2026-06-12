@@ -14,6 +14,10 @@ Manejo de Errores: El servicio maneja errores y devuelve mensajes de error adecu
 ## Endpoints
 - `POST /PDFExtractor/GetTextFromPdf` (form-data, campo `file`): recibe un PDF y devuelve, por página, las palabras de la capa de texto y el texto OCR de las imágenes embebidas.
 - `POST /PDFExtractor/GetTextFromImage` (form-data, campo `file`): recibe una imagen (PNG/JPG/TIFF/BMP) y devuelve su texto reconocido por OCR junto con sus dimensiones.
+- `GET /health`: comprobación de estado del servicio.
+
+## Configuración
+- `Ocr:Languages` (en `appsettings.json` o vía variable de entorno `Ocr__Languages`): idiomas que usa Tesseract, separados por `+`. Por defecto `spa+eng`. Cada idioma requiere su archivo `Data/tessdata/<idioma>.traineddata`.
 
 
 ## Arquitectura del Proyecto

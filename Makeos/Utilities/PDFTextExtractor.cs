@@ -7,7 +7,7 @@ namespace Makeos.Utilities
 {
     public static class PDFTextExtractor
     {
-        public static PDFInfo ExtractText(Stream pdfStream)
+        public static PDFInfo ExtractText(Stream pdfStream, string ocrLanguages = OCRTextExtractor.DefaultLanguage)
         {
             PDFInfo pdfInfo = new PDFInfo();
 
@@ -28,7 +28,7 @@ namespace Makeos.Utilities
                     {
                         PageNumber = page.Number,
                         Words = ExtractWords(page),
-                        OCRText = ExtractOCRText(page, ref ocrExtractor)
+                        OCRText = ExtractOCRText(page, ocrLanguages, ref ocrExtractor)
                     });
                 }
             }
@@ -59,13 +59,13 @@ namespace Makeos.Utilities
             return words;
         }
 
-        private static List<OCRTextInfo> ExtractOCRText(Page page, ref OCRTextExtractor? ocrExtractor)
+        private static List<OCRTextInfo> ExtractOCRText(Page page, string ocrLanguages, ref OCRTextExtractor? ocrExtractor)
         {
             var ocrTextList = new List<OCRTextInfo>();
 
             foreach (var image in page.GetImages())
             {
-                ocrExtractor ??= new OCRTextExtractor();
+                ocrExtractor ??= new OCRTextExtractor(ocrLanguages);
 
                 // El OCR es "best effort": una imagen ilegible no debe invalidar el resto del documento.
                 try

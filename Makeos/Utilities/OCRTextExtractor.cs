@@ -9,7 +9,7 @@ namespace Makeos.Utilities
     public sealed class OCRTextExtractor : IDisposable
     {
         // Las facturas suelen estar en español; se mantiene inglés como respaldo.
-        private const string DefaultLanguage = "spa+eng";
+        public const string DefaultLanguage = "spa+eng";
 
         // La ruta se resuelve respecto al directorio del ejecutable (no al directorio de
         // trabajo) para que el OCR funcione sin importar desde dónde se lance el proceso.

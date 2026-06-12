@@ -1,13 +1,13 @@
 using System.Text;
 using Makeos.Services;
-using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Makeos.Tests
 {
     public class PDFExtractorServiceTests
     {
-        private readonly PDFExtractorService _service = new();
+        private readonly PDFExtractorService _service = new(new ConfigurationBuilder().Build());
 
         [Fact]
         public async Task ExtractTextAsync_NullFile_ThrowsArgumentException()
