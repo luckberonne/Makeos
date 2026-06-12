@@ -10,7 +10,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 USER root
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends libleptonica-dev libtesseract-dev; \
+    apt-get install -y --no-install-recommends libleptonica-dev libtesseract-dev curl; \
     rm -rf /var/lib/apt/lists/*; \
     ARCH_DIR="/usr/lib/$(uname -m)-linux-gnu"; \
     ln -sf "$ARCH_DIR/libdl.so.2" "$ARCH_DIR/libdl.so"; \
@@ -47,4 +47,9 @@ RUN set -eux; \
     chown -R app:app /app/x64
 
 USER app
+
+# Comprobación de salud del contenedor contra el endpoint /health.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["dotnet", "Makeos.dll"]

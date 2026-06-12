@@ -6,5 +6,6 @@ namespace Makeos.Models
         public int Width { get; set; }
         public int Height { get; set; }
         public string OCRText { get; set; } = string.Empty;
+        public List<WordInfo> Words { get; set; } = new();
     }
 }

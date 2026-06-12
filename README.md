@@ -13,11 +13,17 @@ Manejo de Errores: El servicio maneja errores y devuelve mensajes de error adecu
 
 ## Endpoints
 - `POST /PDFExtractor/GetTextFromPdf` (form-data, campo `file`): recibe un PDF y devuelve, por página, las palabras de la capa de texto y el texto OCR de las imágenes embebidas.
-- `POST /PDFExtractor/GetTextFromImage` (form-data, campo `file`): recibe una imagen (PNG/JPG/TIFF/BMP) y devuelve su texto reconocido por OCR junto con sus dimensiones.
+- `POST /PDFExtractor/GetTextFromImage` (form-data, campo `file`): recibe una imagen (PNG/JPG/TIFF/BMP) y devuelve su texto OCR, sus dimensiones y las palabras reconocidas con sus coordenadas (en píxeles, origen arriba-izquierda).
 - `GET /health`: comprobación de estado del servicio.
 
+Los errores se devuelven en formato `ProblemDetails` (RFC 7807) como JSON.
+
 ## Configuración
-- `Ocr:Languages` (en `appsettings.json` o vía variable de entorno `Ocr__Languages`): idiomas que usa Tesseract, separados por `+`. Por defecto `spa+eng`. Cada idioma requiere su archivo `Data/tessdata/<idioma>.traineddata`.
+Vía `appsettings.json` o variables de entorno (reemplazando `:` por `__`):
+- `Ocr:Languages`: idiomas de Tesseract separados por `+`. Por defecto `spa+eng`. Cada idioma requiere su archivo `Data/tessdata/<idioma>.traineddata`.
+- `Ocr:MaxPoolSize`: máximo de motores Tesseract ociosos retenidos por idioma. `0` (por defecto) usa el número de núcleos disponibles.
+- `Pdf:MaxPages`: máximo de páginas permitidas por PDF. `0` (por defecto) = sin límite.
+- `Upload:MaxFileSizeBytes`: tamaño máximo de archivo subido. Por defecto `52428800` (50 MB).
 
 
 ## Arquitectura del Proyecto
@@ -30,7 +36,9 @@ Copiar código
   - PDFExtractorService.cs
 - Utilities
   - PDFTextExtractor.cs
-  - OCRTextExtractor.cs
+  - OcrProcessor.cs
+  - TesseractEnginePool.cs
+  - ImageSignatures.cs
 - Models
   - PDFInfo.cs
   - PageInfo.cs

@@ -5,14 +5,18 @@ namespace Makeos.Services
 {
     public class PDFExtractorService : IPDFExtractorService
     {
+        private readonly ITesseractEnginePool _enginePool;
         private readonly string _ocrLanguages;
+        private readonly int _maxPages;
 
-        public PDFExtractorService(IConfiguration configuration)
+        public PDFExtractorService(IConfiguration configuration, ITesseractEnginePool enginePool)
         {
-            _ocrLanguages = configuration["Ocr:Languages"] ?? OCRTextExtractor.DefaultLanguage;
+            _enginePool = enginePool;
+            _ocrLanguages = configuration["Ocr:Languages"] ?? OcrProcessor.DefaultLanguage;
+            _maxPages = configuration.GetValue<int?>("Pdf:MaxPages") ?? 0;
         }
 
-        public async Task<PDFInfo> ExtractTextAsync(IFormFile file)
+        public async Task<PDFInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)
         {
             if (file == null || file.Length == 0)
             {
@@ -25,7 +29,7 @@ namespace Makeos.Services
             }
 
             await using var memoryStream = new MemoryStream();
-            await file.CopyToAsync(memoryStream);
+            await file.CopyToAsync(memoryStream, cancellationToken);
             memoryStream.Position = 0;
 
             if (!IsPdf(memoryStream))
@@ -35,9 +39,17 @@ namespace Makeos.Services
 
             try
             {
-                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream, _ocrLanguages);
+                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream, _enginePool, _ocrLanguages, _maxPages, cancellationToken);
                 pdfInfo.PDFName = file.FileName;
                 return pdfInfo;
+            }
+            catch (ArgumentException)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

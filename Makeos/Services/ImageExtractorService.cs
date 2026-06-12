@@ -8,14 +8,16 @@ namespace Makeos.Services
         private static readonly string[] AllowedExtensions =
             { ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp" };
 
+        private readonly ITesseractEnginePool _enginePool;
         private readonly string _ocrLanguages;
 
-        public ImageExtractorService(IConfiguration configuration)
+        public ImageExtractorService(IConfiguration configuration, ITesseractEnginePool enginePool)
         {
-            _ocrLanguages = configuration["Ocr:Languages"] ?? OCRTextExtractor.DefaultLanguage;
+            _enginePool = enginePool;
+            _ocrLanguages = configuration["Ocr:Languages"] ?? OcrProcessor.DefaultLanguage;
         }
 
-        public async Task<ImageInfo> ExtractTextAsync(IFormFile file)
+        public async Task<ImageInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)
         {
             if (file == null || file.Length == 0)
             {
@@ -28,7 +30,7 @@ namespace Makeos.Services
             }
 
             await using var memoryStream = new MemoryStream();
-            await file.CopyToAsync(memoryStream);
+            await file.CopyToAsync(memoryStream, cancellationToken);
             byte[] imageBytes = memoryStream.ToArray();
 
             if (!ImageSignatures.IsSupportedImage(imageBytes))
@@ -36,18 +38,25 @@ namespace Makeos.Services
                 throw new ArgumentException("El contenido del archivo no corresponde a una imagen válida.");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
-                using var ocr = new OCRTextExtractor(_ocrLanguages);
-                var (text, width, height) = ocr.Recognize(imageBytes);
+                using var engine = _enginePool.Rent(_ocrLanguages);
+                var result = OcrProcessor.Recognize(engine.Engine, imageBytes);
 
                 return new ImageInfo
                 {
                     ImageName = file.FileName,
-                    Width = width,
-                    Height = height,
-                    OCRText = text
+                    Width = result.Width,
+                    Height = result.Height,
+                    OCRText = result.Text,
+                    Words = result.Words
                 };
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
