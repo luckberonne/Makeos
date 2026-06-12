@@ -1,9 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using UglyToad.PdfPig;
-using Microsoft.AspNetCore.Http;
-using System;
-using System.IO;
 using Makeos.Models;
 using Makeos.Services;
 
@@ -15,23 +10,22 @@ namespace Makeos.Controllers
     {
         private readonly ILogger<PDFExtractorController> _logger;
         private readonly IPDFExtractorService _pdfExtractorService;
-        private readonly IAIInvoiceService _aiInvoiceService;
 
-        public PDFExtractorController(ILogger<PDFExtractorController> logger, IPDFExtractorService pdfExtractorService, IAIInvoiceService aIInvoiceService)
+        public PDFExtractorController(ILogger<PDFExtractorController> logger, IPDFExtractorService pdfExtractorService)
         {
             _logger = logger;
             _pdfExtractorService = pdfExtractorService;
-            _aiInvoiceService = aIInvoiceService;
         }
 
         [HttpPost]
+        [ProducesResponseType(typeof(PDFInfo), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<PDFInfo>> GetTextFromPdf(IFormFile file)
         {
             try
             {
                 var pdfInfo = await _pdfExtractorService.ExtractTextAsync(file);
-                var invoiceInfo = await _aiInvoiceService.ExtractInvoiceInfoAsync(pdfInfo);
-
                 return Ok(pdfInfo);
             }
             catch (ArgumentException ex)
@@ -41,9 +35,8 @@ namespace Makeos.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al procesar el archivo PDF.");
-                return StatusCode(500, $"Error al procesar el archivo PDF: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error al procesar el archivo PDF.");
             }
         }
     }
 }
-
