@@ -9,7 +9,8 @@ namespace Makeos.Utilities
     public sealed class OCRTextExtractor : IDisposable
     {
         private const string TessDataPath = "./Data/tessdata";
-        private const string DefaultLanguage = "eng";
+        // Las facturas suelen estar en español; se mantiene inglés como respaldo.
+        private const string DefaultLanguage = "spa+eng";
 
         private readonly TesseractEngine _engine;
 
