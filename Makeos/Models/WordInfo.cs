@@ -1,8 +1,8 @@
-﻿namespace Makeos.Models
+namespace Makeos.Models
 {
     public class WordInfo
     {
-        public string Word { get; set; }
+        public string Word { get; set; } = string.Empty;
         public int XMin { get; set; }
         public int YMin { get; set; }
         public int XMax { get; set; }

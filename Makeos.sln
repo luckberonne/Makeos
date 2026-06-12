@@ -5,6 +5,8 @@ VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Makeos", "Makeos\Makeos.csproj", "{D50A81BD-83FD-4730-AF98-9D056BCCC079}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Makeos.Tests", "Makeos.Tests\Makeos.Tests.csproj", "{03B2B2E3-9A9F-40FD-8886-950DB0C53535}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{D50A81BD-83FD-4730-AF98-9D056BCCC079}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D50A81BD-83FD-4730-AF98-9D056BCCC079}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D50A81BD-83FD-4730-AF98-9D056BCCC079}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03B2B2E3-9A9F-40FD-8886-950DB0C53535}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03B2B2E3-9A9F-40FD-8886-950DB0C53535}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03B2B2E3-9A9F-40FD-8886-950DB0C53535}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03B2B2E3-9A9F-40FD-8886-950DB0C53535}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

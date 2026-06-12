@@ -7,8 +7,13 @@ Este proyecto consiste en la creación de un servicio web en ASP.NET Core que pe
 Carga de Archivos PDF: Permite la carga de archivos PDF a través de una solicitud HTTP POST.
 Extracción de Texto: Utiliza la biblioteca UglyToad.PdfPig para extraer texto y posiciones de las palabras dentro del PDF.
 OCR con Tesseract: Realiza OCR en imágenes contenidas en los PDFs utilizando la biblioteca Tesseract si es necesario.
+Carga de Imágenes: Permite también enviar imágenes sueltas (PNG, JPG, TIFF o BMP) y obtener su texto por OCR.
 Respuesta en Formato JSON: La información extraída se devuelve en un formato JSON estructurado.
 Manejo de Errores: El servicio maneja errores y devuelve mensajes de error adecuados.
+
+## Endpoints
+- `POST /PDFExtractor/GetTextFromPdf` (form-data, campo `file`): recibe un PDF y devuelve, por página, las palabras de la capa de texto y el texto OCR de las imágenes embebidas.
+- `POST /PDFExtractor/GetTextFromImage` (form-data, campo `file`): recibe una imagen (PNG/JPG/TIFF/BMP) y devuelve su texto reconocido por OCR junto con sus dimensiones.
 
 
 ## Arquitectura del Proyecto

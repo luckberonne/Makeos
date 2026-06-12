@@ -1,6 +1,13 @@
 @Makeos_HostAddress = http://localhost:5225
 
-GET {{Makeos_HostAddress}}/weatherforecast/
-Accept: application/json
+POST {{Makeos_HostAddress}}/PDFExtractor/GetTextFromPdf
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="file"; filename="ejemplo.pdf"
+Content-Type: application/pdf
+
+< ./ejemplo.pdf
+------Boundary--
 
 ###

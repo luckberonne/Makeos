@@ -1,63 +1,45 @@
-﻿using Tesseract;
+using Tesseract;
 
 namespace Makeos.Utilities
 {
-    public class OCRTextExtractor
+    /// <summary>
+    /// Envuelve un <see cref="TesseractEngine"/> reutilizable. El motor usa recursos
+    /// nativos, por lo que debe crearse una sola vez por documento y liberarse con Dispose.
+    /// </summary>
+    public sealed class OCRTextExtractor : IDisposable
     {
-        public static string ExtractTextFromImage(Stream imageStream)
+        // Las facturas suelen estar en español; se mantiene inglés como respaldo.
+        private const string DefaultLanguage = "spa+eng";
+
+        // La ruta se resuelve respecto al directorio del ejecutable (no al directorio de
+        // trabajo) para que el OCR funcione sin importar desde dónde se lance el proceso.
+        private static readonly string TessDataPath =
+            Path.Combine(AppContext.BaseDirectory, "Data", "tessdata");
+
+        private readonly TesseractEngine _engine;
+
+        public OCRTextExtractor(string language = DefaultLanguage)
         {
-            var ocrEngine = new TesseractEngine(@"./Data/tessdata", "eng", EngineMode.Default);
-            using (var img = Pix.LoadFromMemory(ReadToEnd(imageStream)))
-            {
-                using (var page = ocrEngine.Process(img))
-                {
-                    return page.GetText();
-                }
-            }
+            _engine = new TesseractEngine(TessDataPath, language, EngineMode.Default);
         }
 
-        private static byte[] ReadToEnd(Stream stream)
+        public string ExtractTextFromImage(byte[] imageBytes)
+            => Recognize(imageBytes).Text;
+
+        /// <summary>
+        /// Ejecuta OCR sobre una imagen y devuelve el texto reconocido junto con las
+        /// dimensiones de la imagen analizada.
+        /// </summary>
+        public (string Text, int Width, int Height) Recognize(byte[] imageBytes)
         {
-            long originalPosition = stream.Position;
-            stream.Position = 0;
+            using var img = Pix.LoadFromMemory(imageBytes);
+            using var page = _engine.Process(img);
+            return (page.GetText(), img.Width, img.Height);
+        }
 
-            try
-            {
-                byte[] readBuffer = new byte[4096];
-
-                int totalBytesRead = 0;
-                int bytesRead;
-
-                while ((bytesRead = stream.Read(readBuffer, totalBytesRead, readBuffer.Length - totalBytesRead)) > 0)
-                {
-                    totalBytesRead += bytesRead;
-
-                    if (totalBytesRead == readBuffer.Length)
-                    {
-                        int nextByte = stream.ReadByte();
-                        if (nextByte != -1)
-                        {
-                            byte[] temp = new byte[readBuffer.Length * 2];
-                            Buffer.BlockCopy(readBuffer, 0, temp, 0, readBuffer.Length);
-                            Buffer.SetByte(temp, totalBytesRead, (byte)nextByte);
-                            readBuffer = temp;
-                            totalBytesRead++;
-                        }
-                    }
-                }
-
-                byte[] buffer = readBuffer;
-                if (readBuffer.Length != totalBytesRead)
-                {
-                    buffer = new byte[totalBytesRead];
-                    Buffer.BlockCopy(readBuffer, 0, buffer, 0, totalBytesRead);
-                }
-                return buffer;
-            }
-            finally
-            {
-                stream.Position = originalPosition;
-            }
+        public void Dispose()
+        {
+            _engine.Dispose();
         }
     }
 }
