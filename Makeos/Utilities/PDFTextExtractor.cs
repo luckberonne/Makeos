@@ -1,41 +1,43 @@
-﻿using Makeos.Models;
+using Makeos.Models;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
+using UglyToad.PdfPig.Images;
 
 namespace Makeos.Utilities
 {
-    public class PDFTextExtractor
+    public static class PDFTextExtractor
     {
         public static PDFInfo ExtractText(Stream pdfStream)
         {
             PDFInfo pdfInfo = new PDFInfo();
 
-            using (PdfDocument document = PdfDocument.Open(pdfStream))
+            // El motor OCR se crea una sola vez por documento (y solo si hay imágenes),
+            // ya que su inicialización es costosa y usa recursos nativos.
+            OCRTextExtractor? ocrExtractor = null;
+
+            try
             {
+                using PdfDocument document = PdfDocument.Open(pdfStream);
+
                 pdfInfo.TotalPages = document.NumberOfPages;
-                pdfInfo.Pages = new List<PageInfo>();
 
                 for (var i = 0; i < document.NumberOfPages; i++)
                 {
                     var page = document.GetPage(i + 1);
-                    var pageInfo = ExtractPageInfo(page);
-                    pdfInfo.Pages.Add(pageInfo);
+                    pdfInfo.Pages.Add(new PageInfo
+                    {
+                        PageNumber = page.Number,
+                        Words = ExtractWords(page),
+                        OCRText = ExtractOCRText(page, ref ocrExtractor)
+                    });
                 }
+            }
+            finally
+            {
+                ocrExtractor?.Dispose();
             }
 
             return pdfInfo;
-        }
-
-        private static PageInfo ExtractPageInfo(Page page)
-        {
-            var pageInfo = new PageInfo
-            {
-                PageNumber = page.Number,
-                Words = ExtractWords(page),
-                OCRText = ExtractOCRText(page)
-            };
-
-            return pageInfo;
         }
 
         private static List<WordInfo> ExtractWords(Page page)
@@ -57,32 +59,47 @@ namespace Makeos.Utilities
             return words;
         }
 
-        private static List<OCRTextInfo> ExtractOCRText(Page page)
+        private static List<OCRTextInfo> ExtractOCRText(Page page, ref OCRTextExtractor? ocrExtractor)
         {
             var ocrTextList = new List<OCRTextInfo>();
 
-            var images = page.GetImages();
-            if (images != null)
+            foreach (var image in page.GetImages())
             {
-                foreach (var image in images)
-                {
-                    using (var imageStream = new MemoryStream(image.RawBytes.ToArray()))
-                    {
-                        string ocrText = OCRTextExtractor.ExtractTextFromImage(imageStream);
+                ocrExtractor ??= new OCRTextExtractor();
 
-                        ocrTextList.Add(new OCRTextInfo
-                        {
-                            OCRText = ocrText,
-                            XMin = (int)image.Bounds.BottomLeft.X,
-                            YMin = (int)image.Bounds.BottomLeft.Y,
-                            XMax = (int)image.Bounds.TopRight.X,
-                            YMax = (int)image.Bounds.TopRight.Y
-                        });
-                    }
+                // El OCR es "best effort": una imagen ilegible no debe invalidar el resto del documento.
+                try
+                {
+                    string ocrText = ocrExtractor.ExtractTextFromImage(GetImageBytes(image));
+
+                    ocrTextList.Add(new OCRTextInfo
+                    {
+                        OCRText = ocrText,
+                        XMin = (int)image.Bounds.BottomLeft.X,
+                        YMin = (int)image.Bounds.BottomLeft.Y,
+                        XMax = (int)image.Bounds.TopRight.X,
+                        YMax = (int)image.Bounds.TopRight.Y
+                    });
+                }
+                catch (Exception)
+                {
+                    // Imagen en un formato que Tesseract no puede procesar: se omite.
                 }
             }
 
             return ocrTextList;
+        }
+
+        private static byte[] GetImageBytes(IPdfImage image)
+        {
+            // Los bytes crudos del PDF pueden estar comprimidos (Flate, etc.) y no ser
+            // legibles por Tesseract; se prefiere la imagen decodificada como PNG.
+            if (image.TryGetPng(out var pngBytes))
+            {
+                return pngBytes;
+            }
+
+            return image.RawBytes.ToArray();
         }
     }
 }
