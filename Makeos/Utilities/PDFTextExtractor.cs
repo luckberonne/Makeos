@@ -7,34 +7,47 @@ namespace Makeos.Utilities
 {
     public static class PDFTextExtractor
     {
-        public static PDFInfo ExtractText(Stream pdfStream)
+        public static PDFInfo ExtractText(
+            Stream pdfStream,
+            ITesseractEnginePool enginePool,
+            string ocrLanguages,
+            int maxPages = 0,
+            CancellationToken cancellationToken = default)
         {
             PDFInfo pdfInfo = new PDFInfo();
 
-            // El motor OCR se crea una sola vez por documento (y solo si hay imágenes),
-            // ya que su inicialización es costosa y usa recursos nativos.
-            OCRTextExtractor? ocrExtractor = null;
+            // El motor OCR se toma del pool una sola vez por documento (y solo si hay imágenes),
+            // ya que su inicialización es costosa y no es thread-safe.
+            PooledEngine? engine = null;
 
             try
             {
                 using PdfDocument document = PdfDocument.Open(pdfStream);
 
+                if (maxPages > 0 && document.NumberOfPages > maxPages)
+                {
+                    throw new ArgumentException($"El PDF tiene {document.NumberOfPages} páginas y supera el máximo permitido de {maxPages}.");
+                }
+
+
                 pdfInfo.TotalPages = document.NumberOfPages;
 
                 for (var i = 0; i < document.NumberOfPages; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var page = document.GetPage(i + 1);
                     pdfInfo.Pages.Add(new PageInfo
                     {
                         PageNumber = page.Number,
                         Words = ExtractWords(page),
-                        OCRText = ExtractOCRText(page, ref ocrExtractor)
+                        OCRText = ExtractOCRText(page, enginePool, ocrLanguages, ref engine)
                     });
                 }
             }
             finally
             {
-                ocrExtractor?.Dispose();
+                engine?.Dispose();
             }
 
             return pdfInfo;
@@ -59,22 +72,26 @@ namespace Makeos.Utilities
             return words;
         }
 
-        private static List<OCRTextInfo> ExtractOCRText(Page page, ref OCRTextExtractor? ocrExtractor)
+        private static List<OCRTextInfo> ExtractOCRText(
+            Page page,
+            ITesseractEnginePool enginePool,
+            string ocrLanguages,
+            ref PooledEngine? engine)
         {
             var ocrTextList = new List<OCRTextInfo>();
 
             foreach (var image in page.GetImages())
             {
-                ocrExtractor ??= new OCRTextExtractor();
+                engine ??= enginePool.Rent(ocrLanguages);
 
                 // El OCR es "best effort": una imagen ilegible no debe invalidar el resto del documento.
                 try
                 {
-                    string ocrText = ocrExtractor.ExtractTextFromImage(GetImageBytes(image));
+                    var result = OcrProcessor.Recognize(engine.Engine, GetImageBytes(image));
 
                     ocrTextList.Add(new OCRTextInfo
                     {
-                        OCRText = ocrText,
+                        OCRText = result.Text,
                         XMin = (int)image.Bounds.BottomLeft.X,
                         YMin = (int)image.Bounds.BottomLeft.Y,
                         XMax = (int)image.Bounds.TopRight.X,

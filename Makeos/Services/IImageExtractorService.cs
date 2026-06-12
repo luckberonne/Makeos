@@ -4,6 +4,6 @@ namespace Makeos.Services
 {
     public interface IImageExtractorService
     {
-        Task<ImageInfo> ExtractTextAsync(IFormFile file);
+        Task<ImageInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default);
     }
 }

@@ -1,13 +1,15 @@
 using System.Text;
 using Makeos.Services;
-using Microsoft.AspNetCore.Http;
+using Makeos.Utilities;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Makeos.Tests
 {
     public class PDFExtractorServiceTests
     {
-        private readonly PDFExtractorService _service = new();
+        private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
+        private readonly PDFExtractorService _service = new(EmptyConfig, new TesseractEnginePool(EmptyConfig));
 
         [Fact]
         public async Task ExtractTextAsync_NullFile_ThrowsArgumentException()

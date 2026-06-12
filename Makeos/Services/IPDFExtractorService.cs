@@ -1,9 +1,9 @@
-﻿using Makeos.Models;
+using Makeos.Models;
 
 namespace Makeos.Services
 {
     public interface IPDFExtractorService
     {
-        Task<PDFInfo> ExtractTextAsync(IFormFile file);
+        Task<PDFInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default);
     }
 }
