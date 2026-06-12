@@ -29,6 +29,7 @@ namespace Makeos.Utilities
                     throw new ArgumentException($"El PDF tiene {document.NumberOfPages} páginas y supera el máximo permitido de {maxPages}.");
                 }
 
+
                 pdfInfo.TotalPages = document.NumberOfPages;
 
                 for (var i = 0; i < document.NumberOfPages; i++)
