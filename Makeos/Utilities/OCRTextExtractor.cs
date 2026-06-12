@@ -8,9 +8,13 @@ namespace Makeos.Utilities
     /// </summary>
     public sealed class OCRTextExtractor : IDisposable
     {
-        private const string TessDataPath = "./Data/tessdata";
         // Las facturas suelen estar en español; se mantiene inglés como respaldo.
         private const string DefaultLanguage = "spa+eng";
+
+        // La ruta se resuelve respecto al directorio del ejecutable (no al directorio de
+        // trabajo) para que el OCR funcione sin importar desde dónde se lance el proceso.
+        private static readonly string TessDataPath =
+            Path.Combine(AppContext.BaseDirectory, "Data", "tessdata");
 
         private readonly TesseractEngine _engine;
 
@@ -20,10 +24,17 @@ namespace Makeos.Utilities
         }
 
         public string ExtractTextFromImage(byte[] imageBytes)
+            => Recognize(imageBytes).Text;
+
+        /// <summary>
+        /// Ejecuta OCR sobre una imagen y devuelve el texto reconocido junto con las
+        /// dimensiones de la imagen analizada.
+        /// </summary>
+        public (string Text, int Width, int Height) Recognize(byte[] imageBytes)
         {
             using var img = Pix.LoadFromMemory(imageBytes);
             using var page = _engine.Process(img);
-            return page.GetText();
+            return (page.GetText(), img.Width, img.Height);
         }
 
         public void Dispose()

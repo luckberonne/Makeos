@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IPDFExtractorService, PDFExtractorService>();
+builder.Services.AddScoped<IImageExtractorService, ImageExtractorService>();
 
 // Límite de tamaño para la carga de archivos (50 MB).
 const long maxFileSizeBytes = 50 * 1024 * 1024;
