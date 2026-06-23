@@ -49,7 +49,7 @@ namespace Makeos.Services
 
             try
             {
-                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream, _enginePool, _ocrLanguages, _logger, _maxPages, cancellationToken);
+                PDFInfo pdfInfo = await PDFTextExtractor.ExtractTextAsync(memoryStream, _enginePool, _ocrLanguages, _logger, _maxPages, cancellationToken);
                 pdfInfo.PDFName = file.FileName;
                 return pdfInfo;
             }

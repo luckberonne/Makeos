@@ -7,7 +7,7 @@ namespace Makeos.Utilities
 {
     public static class PDFTextExtractor
     {
-        public static PDFInfo ExtractText(
+        public static async Task<PDFInfo> ExtractTextAsync(
             Stream pdfStream,
             ITesseractEnginePool enginePool,
             string ocrLanguages,
@@ -15,43 +15,114 @@ namespace Makeos.Utilities
             int maxPages = 0,
             CancellationToken cancellationToken = default)
         {
-            PDFInfo pdfInfo = new PDFInfo();
+            using PdfDocument document = PdfDocument.Open(pdfStream);
 
-            // El motor OCR se toma del pool una sola vez por documento (y solo si hay imágenes),
-            // ya que su inicialización es costosa y no es thread-safe.
+            if (maxPages > 0 && document.NumberOfPages > maxPages)
+            {
+                throw new ArgumentException($"El PDF tiene {document.NumberOfPages} páginas y supera el máximo permitido de {maxPages}.");
+            }
+
+            // Preparar datos de cada página (lectura del PDF es rápida, no OCR).
+            // PdfDocument no es thread-safe, así que se hace de forma secuencial.
+            var pageData = new List<(int pageNumber, List<WordInfo> words, List<ImageData> images)>();
+            for (var i = 0; i < document.NumberOfPages; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var page = document.GetPage(i + 1);
+                var words = ExtractWords(page);
+                var images = page.GetImages().Select((img, idx) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return new ImageData
+                    {
+                        Index = idx,
+                        Bytes = GetImageBytes(img),
+                        XMin = (int)img.Bounds.BottomLeft.X,
+                        YMin = (int)img.Bounds.BottomLeft.Y,
+                        XMax = (int)img.Bounds.TopRight.X,
+                        YMax = (int)img.Bounds.TopRight.Y
+                    };
+                }).ToList();
+
+                pageData.Add((page.Number, words, images));
+            }
+
+            // Procesar OCR de cada página en paralelo. Cada página renta su propio motor del pool
+            // para que no haya contención: con 4 núcleos, hasta 4 páginas se procesan en paralelo.
+            var pageInfos = new PageInfo[pageData.Count];
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, pageData.Count),
+                new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = Environment.ProcessorCount },
+                async (pageIdx, ct) =>
+                {
+                    var (pageNumber, words, images) = pageData[pageIdx];
+                    pageInfos[pageIdx] = await ProcessPageOcrAsync(
+                        pageNumber, words, images, enginePool, ocrLanguages, logger, ct);
+                });
+
+            var pdfInfo = new PDFInfo
+            {
+                TotalPages = document.NumberOfPages,
+            };
+            pdfInfo.Pages.AddRange(pageInfos);
+            return pdfInfo;
+        }
+
+        private static async Task<PageInfo> ProcessPageOcrAsync(
+            int pageNumber,
+            List<WordInfo> words,
+            List<ImageData> images,
+            ITesseractEnginePool enginePool,
+            string ocrLanguages,
+            ILogger logger,
+            CancellationToken cancellationToken)
+        {
             PooledEngine? engine = null;
 
             try
             {
-                using PdfDocument document = PdfDocument.Open(pdfStream);
+                var ocrTextList = new List<OCRTextInfo>();
 
-                if (maxPages > 0 && document.NumberOfPages > maxPages)
-                {
-                    throw new ArgumentException($"El PDF tiene {document.NumberOfPages} páginas y supera el máximo permitido de {maxPages}.");
-                }
-
-
-                pdfInfo.TotalPages = document.NumberOfPages;
-
-                for (var i = 0; i < document.NumberOfPages; i++)
+                foreach (var image in images)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var page = document.GetPage(i + 1);
-                    pdfInfo.Pages.Add(new PageInfo
+                    engine ??= enginePool.Rent(ocrLanguages);
+
+                    // El OCR es "best effort": una imagen ilegible no debe invalidar el resto del documento.
+                    try
                     {
-                        PageNumber = page.Number,
-                        Words = ExtractWords(page),
-                        OCRText = ExtractOCRText(page, enginePool, ocrLanguages, logger, ref engine)
-                    });
+                        var result = OcrProcessor.Recognize(engine.Engine, image.Bytes);
+
+                        ocrTextList.Add(new OCRTextInfo
+                        {
+                            OCRText = result.Text,
+                            XMin = image.XMin,
+                            YMin = image.YMin,
+                            XMax = image.XMax,
+                            YMax = image.YMax
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex,
+                            "No se pudo aplicar OCR a la imagen {ImageIndex} de la página {PageNumber}; se omite.",
+                            image.Index, pageNumber);
+                    }
                 }
+
+                return new PageInfo
+                {
+                    PageNumber = pageNumber,
+                    Words = words,
+                    OCRText = ocrTextList
+                };
             }
             finally
             {
                 engine?.Dispose();
             }
-
-            return pdfInfo;
         }
 
         private static List<WordInfo> ExtractWords(Page page)
@@ -73,58 +144,24 @@ namespace Makeos.Utilities
             return words;
         }
 
-        private static List<OCRTextInfo> ExtractOCRText(
-            Page page,
-            ITesseractEnginePool enginePool,
-            string ocrLanguages,
-            ILogger logger,
-            ref PooledEngine? engine)
-        {
-            var ocrTextList = new List<OCRTextInfo>();
-            int imageIndex = 0;
-
-            foreach (var image in page.GetImages())
-            {
-                imageIndex++;
-                engine ??= enginePool.Rent(ocrLanguages);
-
-                // El OCR es "best effort": una imagen ilegible no debe invalidar el resto del documento.
-                try
-                {
-                    var result = OcrProcessor.Recognize(engine.Engine, GetImageBytes(image));
-
-                    ocrTextList.Add(new OCRTextInfo
-                    {
-                        OCRText = result.Text,
-                        XMin = (int)image.Bounds.BottomLeft.X,
-                        YMin = (int)image.Bounds.BottomLeft.Y,
-                        XMax = (int)image.Bounds.TopRight.X,
-                        YMax = (int)image.Bounds.TopRight.Y
-                    });
-                }
-                catch (Exception ex)
-                {
-                    // Imagen en un formato que Tesseract no puede procesar: se omite, pero se
-                    // registra para poder diagnosticar por qué no produjo texto.
-                    logger.LogWarning(ex,
-                        "No se pudo aplicar OCR a la imagen {ImageIndex} de la página {PageNumber}; se omite.",
-                        imageIndex, page.Number);
-                }
-            }
-
-            return ocrTextList;
-        }
-
         private static byte[] GetImageBytes(IPdfImage image)
         {
-            // Los bytes crudos del PDF pueden estar comprimidos (Flate, etc.) y no ser
-            // legibles por Tesseract; se prefiere la imagen decodificada como PNG.
             if (image.TryGetPng(out var pngBytes))
             {
                 return pngBytes;
             }
 
             return image.RawBytes.ToArray();
+        }
+
+        private sealed class ImageData
+        {
+            public int Index { get; init; }
+            public byte[] Bytes { get; init; } = Array.Empty<byte>();
+            public int XMin { get; init; }
+            public int YMin { get; init; }
+            public int XMax { get; init; }
+            public int YMax { get; init; }
         }
     }
 }
