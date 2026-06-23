@@ -12,21 +12,23 @@ namespace Makeos.Services
 
         private readonly ITesseractEnginePool _enginePool;
         private readonly string _ocrLanguages;
+        private readonly long _maxFileSizeBytes;
 
-        public ImageExtractorService(IOptions<OcrOptions> ocrOptions, ITesseractEnginePool enginePool)
+        public ImageExtractorService(
+            IOptions<OcrOptions> ocrOptions,
+            IOptions<UploadOptions> uploadOptions,
+            ITesseractEnginePool enginePool)
         {
             _enginePool = enginePool;
             _ocrLanguages = string.IsNullOrWhiteSpace(ocrOptions.Value.Languages)
                 ? OcrProcessor.DefaultLanguage
                 : ocrOptions.Value.Languages;
+            _maxFileSizeBytes = uploadOptions.Value.MaxFileSizeBytes;
         }
 
         public async Task<ImageInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)
         {
-            if (file == null || file.Length == 0)
-            {
-                throw new ArgumentException("El archivo proporcionado está vacío o es nulo.");
-            }
+            UploadValidation.EnsureWithinSizeLimit(file, _maxFileSizeBytes);
 
             if (!AllowedExtensions.Any(ext => file.FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
             {

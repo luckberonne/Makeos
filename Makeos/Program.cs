@@ -1,7 +1,9 @@
+using System.Threading.RateLimiting;
 using Makeos.Configuration;
 using Makeos.Services;
 using Makeos.Utilities;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,30 @@ builder.Services.AddOptions<UploadOptions>()
     .Bind(builder.Configuration.GetSection(UploadOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddOptions<RateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(RateLimitOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Limitación de concurrencia para los endpoints de extracción: el OCR es intensivo en
+// CPU, así que se acota cuántas peticiones se procesan a la vez para que un pico no
+// agote el servicio. Las que exceden cola se rechazan con HTTP 429.
+var rateLimit = builder.Configuration.GetSection(RateLimitOptions.SectionName)
+    .Get<RateLimitOptions>() ?? new RateLimitOptions();
+if (rateLimit.Enabled)
+{
+    int permitLimit = rateLimit.PermitLimit > 0 ? rateLimit.PermitLimit : Environment.ProcessorCount;
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddConcurrencyLimiter(RateLimitOptions.PolicyName, limiterOptions =>
+        {
+            limiterOptions.PermitLimit = permitLimit;
+            limiterOptions.QueueLimit = rateLimit.QueueLimit;
+            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        });
+    });
+}
 
 // El pool de motores Tesseract es singleton: reutiliza motores (caros de crear y no
 // thread-safe) entre peticiones.
@@ -61,6 +87,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+
+if (rateLimit.Enabled)
+{
+    app.UseRateLimiter();
+}
 
 app.UseAuthorization();
 

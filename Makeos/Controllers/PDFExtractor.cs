@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Makeos.Configuration;
 using Makeos.Models;
 using Makeos.Services;
 
@@ -7,6 +9,7 @@ namespace Makeos.Controllers
     [ApiController]
     [Route("[controller]/[action]")]
     [Produces("application/json")]
+    [EnableRateLimiting(RateLimitOptions.PolicyName)]
     public class PDFExtractorController : ControllerBase
     {
         private readonly ILogger<PDFExtractorController> _logger;

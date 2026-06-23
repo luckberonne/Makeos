@@ -11,10 +11,12 @@ namespace Makeos.Services
         private readonly ILogger<PDFExtractorService> _logger;
         private readonly string _ocrLanguages;
         private readonly int _maxPages;
+        private readonly long _maxFileSizeBytes;
 
         public PDFExtractorService(
             IOptions<OcrOptions> ocrOptions,
             IOptions<PdfOptions> pdfOptions,
+            IOptions<UploadOptions> uploadOptions,
             ITesseractEnginePool enginePool,
             ILogger<PDFExtractorService> logger)
         {
@@ -24,14 +26,12 @@ namespace Makeos.Services
                 ? OcrProcessor.DefaultLanguage
                 : ocrOptions.Value.Languages;
             _maxPages = pdfOptions.Value.MaxPages;
+            _maxFileSizeBytes = uploadOptions.Value.MaxFileSizeBytes;
         }
 
         public async Task<PDFInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)
         {
-            if (file == null || file.Length == 0)
-            {
-                throw new ArgumentException("El archivo proporcionado está vacío o es nulo.");
-            }
+            UploadValidation.EnsureWithinSizeLimit(file, _maxFileSizeBytes);
 
             if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
