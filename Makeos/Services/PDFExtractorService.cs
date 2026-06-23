@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Makeos.Configuration;
 using Makeos.Models;
 using Makeos.Utilities;
@@ -49,8 +50,15 @@ namespace Makeos.Services
 
             try
             {
+                var stopwatch = Stopwatch.StartNew();
                 PDFInfo pdfInfo = await PDFTextExtractor.ExtractTextAsync(memoryStream, _enginePool, _ocrLanguages, _logger, _maxPages, cancellationToken);
                 pdfInfo.PDFName = file.FileName;
+                stopwatch.Stop();
+
+                _logger.LogInformation(
+                    "PDF procesado: {FileName} ({Pages} páginas, {Bytes} bytes) en {ElapsedMs} ms.",
+                    file.FileName, pdfInfo.TotalPages, memoryStream.Length, stopwatch.ElapsedMilliseconds);
+
                 return pdfInfo;
             }
             catch (ArgumentException)

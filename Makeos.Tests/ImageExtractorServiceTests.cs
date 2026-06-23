@@ -2,6 +2,7 @@ using System.Text;
 using Makeos.Configuration;
 using Makeos.Services;
 using Makeos.Utilities;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -14,7 +15,8 @@ namespace Makeos.Tests
     {
         private static readonly IOptions<OcrOptions> OcrOpts = Options.Create(new OcrOptions());
         private static readonly IOptions<UploadOptions> UploadOpts = Options.Create(new UploadOptions());
-        private readonly ImageExtractorService _service = new(OcrOpts, UploadOpts, new TesseractEnginePool(OcrOpts));
+        private readonly ImageExtractorService _service = new(
+            OcrOpts, UploadOpts, new TesseractEnginePool(OcrOpts), NullLogger<ImageExtractorService>.Instance);
 
         [Fact]
         public async Task ExtractTextAsync_NullFile_ThrowsArgumentException()
@@ -53,7 +55,8 @@ namespace Makeos.Tests
         public async Task ExtractTextAsync_FileExceedsSizeLimit_ThrowsArgumentException()
         {
             var smallLimit = Options.Create(new UploadOptions { MaxFileSizeBytes = 5 });
-            var service = new ImageExtractorService(OcrOpts, smallLimit, new TesseractEnginePool(OcrOpts));
+            var service = new ImageExtractorService(
+                OcrOpts, smallLimit, new TesseractEnginePool(OcrOpts), NullLogger<ImageExtractorService>.Instance);
             var file = TestFiles.Create(Encoding.ASCII.GetBytes("contenido mas largo que el limite"), "imagen.png", "image/png");
 
             var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.ExtractTextAsync(file));
