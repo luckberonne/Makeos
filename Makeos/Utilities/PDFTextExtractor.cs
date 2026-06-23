@@ -11,6 +11,7 @@ namespace Makeos.Utilities
             Stream pdfStream,
             ITesseractEnginePool enginePool,
             string ocrLanguages,
+            ILogger logger,
             int maxPages = 0,
             CancellationToken cancellationToken = default)
         {
@@ -41,7 +42,7 @@ namespace Makeos.Utilities
                     {
                         PageNumber = page.Number,
                         Words = ExtractWords(page),
-                        OCRText = ExtractOCRText(page, enginePool, ocrLanguages, ref engine)
+                        OCRText = ExtractOCRText(page, enginePool, ocrLanguages, logger, ref engine)
                     });
                 }
             }
@@ -76,12 +77,15 @@ namespace Makeos.Utilities
             Page page,
             ITesseractEnginePool enginePool,
             string ocrLanguages,
+            ILogger logger,
             ref PooledEngine? engine)
         {
             var ocrTextList = new List<OCRTextInfo>();
+            int imageIndex = 0;
 
             foreach (var image in page.GetImages())
             {
+                imageIndex++;
                 engine ??= enginePool.Rent(ocrLanguages);
 
                 // El OCR es "best effort": una imagen ilegible no debe invalidar el resto del documento.
@@ -98,9 +102,13 @@ namespace Makeos.Utilities
                         YMax = (int)image.Bounds.TopRight.Y
                     });
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Imagen en un formato que Tesseract no puede procesar: se omite.
+                    // Imagen en un formato que Tesseract no puede procesar: se omite, pero se
+                    // registra para poder diagnosticar por qué no produjo texto.
+                    logger.LogWarning(ex,
+                        "No se pudo aplicar OCR a la imagen {ImageIndex} de la página {PageNumber}; se omite.",
+                        imageIndex, page.Number);
                 }
             }
 

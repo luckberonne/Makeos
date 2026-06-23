@@ -1,7 +1,8 @@
 using System.Text;
+using Makeos.Configuration;
 using Makeos.Services;
 using Makeos.Utilities;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Makeos.Tests
@@ -11,8 +12,8 @@ namespace Makeos.Tests
     // no toca código nativo y por tanto corre en cualquier CI.
     public class ImageExtractorServiceTests
     {
-        private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
-        private readonly ImageExtractorService _service = new(EmptyConfig, new TesseractEnginePool(EmptyConfig));
+        private static readonly IOptions<OcrOptions> OcrOpts = Options.Create(new OcrOptions());
+        private readonly ImageExtractorService _service = new(OcrOpts, new TesseractEnginePool(OcrOpts));
 
         [Fact]
         public async Task ExtractTextAsync_NullFile_ThrowsArgumentException()

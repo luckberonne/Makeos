@@ -43,7 +43,13 @@ Copiar código
   - PDFInfo.cs
   - PageInfo.cs
   - WordInfo.cs
+- Configuration
+  - OcrOptions.cs
+  - PdfOptions.cs
+  - UploadOptions.cs
 - Program.cs
+
+Las secciones de `appsettings.json` (`Ocr`, `Pdf`, `Upload`) se enlazan a clases de opciones tipadas (`IOptions<T>`) y se validan al arranque: un valor inválido (idioma vacío, número negativo) impide que el servicio inicie en lugar de fallar silenciosamente en tiempo de ejecución.
 
 ## Requisitos Previos
 - .NET 8

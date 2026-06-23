@@ -1,15 +1,22 @@
 using System.Text;
+using Makeos.Configuration;
 using Makeos.Services;
 using Makeos.Utilities;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Makeos.Tests
 {
     public class PDFExtractorServiceTests
     {
-        private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
-        private readonly PDFExtractorService _service = new(EmptyConfig, new TesseractEnginePool(EmptyConfig));
+        private static readonly IOptions<OcrOptions> OcrOpts = Options.Create(new OcrOptions());
+        private static readonly IOptions<PdfOptions> PdfOpts = Options.Create(new PdfOptions());
+        private readonly PDFExtractorService _service = new(
+            OcrOpts,
+            PdfOpts,
+            new TesseractEnginePool(OcrOpts),
+            NullLogger<PDFExtractorService>.Instance);
 
         [Fact]
         public async Task ExtractTextAsync_NullFile_ThrowsArgumentException()

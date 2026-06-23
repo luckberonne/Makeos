@@ -1,3 +1,4 @@
+using Makeos.Configuration;
 using Makeos.Services;
 using Makeos.Utilities;
 using Microsoft.AspNetCore.Http.Features;
@@ -9,6 +10,22 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 
+// Configuración tipada con validación al arranque: un valor inválido en appsettings
+// (idioma vacío, números negativos, etc.) hace fallar el arranque en vez de pasar
+// desapercibido en tiempo de ejecución.
+builder.Services.AddOptions<OcrOptions>()
+    .Bind(builder.Configuration.GetSection(OcrOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<PdfOptions>()
+    .Bind(builder.Configuration.GetSection(PdfOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<UploadOptions>()
+    .Bind(builder.Configuration.GetSection(UploadOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 // El pool de motores Tesseract es singleton: reutiliza motores (caros de crear y no
 // thread-safe) entre peticiones.
 builder.Services.AddSingleton<ITesseractEnginePool, TesseractEnginePool>();
@@ -16,7 +33,8 @@ builder.Services.AddScoped<IPDFExtractorService, PDFExtractorService>();
 builder.Services.AddScoped<IImageExtractorService, ImageExtractorService>();
 
 // Límite de tamaño para la carga de archivos (configurable; por defecto 50 MB).
-long maxFileSizeBytes = builder.Configuration.GetValue<long?>("Upload:MaxFileSizeBytes") ?? 50L * 1024 * 1024;
+long maxFileSizeBytes = builder.Configuration.GetSection(UploadOptions.SectionName)
+    .Get<UploadOptions>()?.MaxFileSizeBytes ?? new UploadOptions().MaxFileSizeBytes;
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = maxFileSizeBytes;

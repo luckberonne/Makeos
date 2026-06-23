@@ -1,5 +1,7 @@
+using Makeos.Configuration;
 using Makeos.Models;
 using Makeos.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace Makeos.Services
 {
@@ -11,10 +13,12 @@ namespace Makeos.Services
         private readonly ITesseractEnginePool _enginePool;
         private readonly string _ocrLanguages;
 
-        public ImageExtractorService(IConfiguration configuration, ITesseractEnginePool enginePool)
+        public ImageExtractorService(IOptions<OcrOptions> ocrOptions, ITesseractEnginePool enginePool)
         {
             _enginePool = enginePool;
-            _ocrLanguages = configuration["Ocr:Languages"] ?? OcrProcessor.DefaultLanguage;
+            _ocrLanguages = string.IsNullOrWhiteSpace(ocrOptions.Value.Languages)
+                ? OcrProcessor.DefaultLanguage
+                : ocrOptions.Value.Languages;
         }
 
         public async Task<ImageInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)

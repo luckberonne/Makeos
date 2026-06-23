@@ -1,19 +1,29 @@
+using Makeos.Configuration;
 using Makeos.Models;
 using Makeos.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace Makeos.Services
 {
     public class PDFExtractorService : IPDFExtractorService
     {
         private readonly ITesseractEnginePool _enginePool;
+        private readonly ILogger<PDFExtractorService> _logger;
         private readonly string _ocrLanguages;
         private readonly int _maxPages;
 
-        public PDFExtractorService(IConfiguration configuration, ITesseractEnginePool enginePool)
+        public PDFExtractorService(
+            IOptions<OcrOptions> ocrOptions,
+            IOptions<PdfOptions> pdfOptions,
+            ITesseractEnginePool enginePool,
+            ILogger<PDFExtractorService> logger)
         {
             _enginePool = enginePool;
-            _ocrLanguages = configuration["Ocr:Languages"] ?? OcrProcessor.DefaultLanguage;
-            _maxPages = configuration.GetValue<int?>("Pdf:MaxPages") ?? 0;
+            _logger = logger;
+            _ocrLanguages = string.IsNullOrWhiteSpace(ocrOptions.Value.Languages)
+                ? OcrProcessor.DefaultLanguage
+                : ocrOptions.Value.Languages;
+            _maxPages = pdfOptions.Value.MaxPages;
         }
 
         public async Task<PDFInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)
@@ -39,7 +49,7 @@ namespace Makeos.Services
 
             try
             {
-                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream, _enginePool, _ocrLanguages, _maxPages, cancellationToken);
+                PDFInfo pdfInfo = PDFTextExtractor.ExtractText(memoryStream, _enginePool, _ocrLanguages, _logger, _maxPages, cancellationToken);
                 pdfInfo.PDFName = file.FileName;
                 return pdfInfo;
             }
