@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using Makeos.Configuration;
 using Makeos.Models;
 using Makeos.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace Makeos.Services
 {
@@ -9,20 +12,27 @@ namespace Makeos.Services
             { ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp" };
 
         private readonly ITesseractEnginePool _enginePool;
+        private readonly ILogger<ImageExtractorService> _logger;
         private readonly string _ocrLanguages;
+        private readonly long _maxFileSizeBytes;
 
-        public ImageExtractorService(IConfiguration configuration, ITesseractEnginePool enginePool)
+        public ImageExtractorService(
+            IOptions<OcrOptions> ocrOptions,
+            IOptions<UploadOptions> uploadOptions,
+            ITesseractEnginePool enginePool,
+            ILogger<ImageExtractorService> logger)
         {
             _enginePool = enginePool;
-            _ocrLanguages = configuration["Ocr:Languages"] ?? OcrProcessor.DefaultLanguage;
+            _logger = logger;
+            _ocrLanguages = string.IsNullOrWhiteSpace(ocrOptions.Value.Languages)
+                ? OcrProcessor.DefaultLanguage
+                : ocrOptions.Value.Languages;
+            _maxFileSizeBytes = uploadOptions.Value.MaxFileSizeBytes;
         }
 
         public async Task<ImageInfo> ExtractTextAsync(IFormFile file, CancellationToken cancellationToken = default)
         {
-            if (file == null || file.Length == 0)
-            {
-                throw new ArgumentException("El archivo proporcionado está vacío o es nulo.");
-            }
+            UploadValidation.EnsureWithinSizeLimit(file, _maxFileSizeBytes);
 
             if (!AllowedExtensions.Any(ext => file.FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
             {
@@ -42,8 +52,14 @@ namespace Makeos.Services
 
             try
             {
+                var stopwatch = Stopwatch.StartNew();
                 using var engine = _enginePool.Rent(_ocrLanguages);
                 var result = OcrProcessor.Recognize(engine.Engine, imageBytes);
+                stopwatch.Stop();
+
+                _logger.LogInformation(
+                    "Imagen procesada: {FileName} ({Width}x{Height}, {Bytes} bytes, {Words} palabras) en {ElapsedMs} ms.",
+                    file.FileName, result.Width, result.Height, imageBytes.Length, result.Words.Count, stopwatch.ElapsedMilliseconds);
 
                 return new ImageInfo
                 {

@@ -18,12 +18,20 @@ Manejo de Errores: El servicio maneja errores y devuelve mensajes de error adecu
 
 Los errores se devuelven en formato `ProblemDetails` (RFC 7807) como JSON.
 
+Si la autenticación por clave de API está activada (`ApiKey:Enabled`), las peticiones a los endpoints de extracción deben incluir el header configurado (por defecto `X-Api-Key`) con una clave válida; en caso contrario se devuelve HTTP 401.
+
 ## Configuración
 Vía `appsettings.json` o variables de entorno (reemplazando `:` por `__`):
 - `Ocr:Languages`: idiomas de Tesseract separados por `+`. Por defecto `spa+eng`. Cada idioma requiere su archivo `Data/tessdata/<idioma>.traineddata`.
 - `Ocr:MaxPoolSize`: máximo de motores Tesseract ociosos retenidos por idioma. `0` (por defecto) usa el número de núcleos disponibles.
 - `Pdf:MaxPages`: máximo de páginas permitidas por PDF. `0` (por defecto) = sin límite.
-- `Upload:MaxFileSizeBytes`: tamaño máximo de archivo subido. Por defecto `52428800` (50 MB).
+- `Upload:MaxFileSizeBytes`: tamaño máximo de archivo subido. Por defecto `52428800` (50 MB). Se valida tanto a nivel de Kestrel como en el servicio, devolviendo HTTP 400 con un mensaje claro si se supera.
+- `RateLimit:Enabled`: activa la limitación de concurrencia en los endpoints de extracción. Por defecto `true`.
+- `RateLimit:PermitLimit`: máximo de peticiones de extracción procesándose a la vez. `0` (por defecto) usa el número de núcleos. Las que exceden cola se rechazan con HTTP 429.
+- `RateLimit:QueueLimit`: peticiones que pueden esperar en cola al alcanzar el límite. `0` (por defecto) = sin cola.
+- `ApiKey:Enabled`: exige clave de API en los endpoints de extracción. Por defecto `false`. Si se activa sin configurar claves, el arranque falla con un mensaje claro.
+- `ApiKey:HeaderName`: header donde el cliente envía la clave. Por defecto `X-Api-Key`.
+- `ApiKey:Keys`: lista de claves válidas (cualquiera autoriza). `/health` y `/swagger` quedan exentos.
 
 
 ## Arquitectura del Proyecto
@@ -39,11 +47,24 @@ Copiar código
   - OcrProcessor.cs
   - TesseractEnginePool.cs
   - ImageSignatures.cs
+  - UploadValidation.cs
 - Models
   - PDFInfo.cs
   - PageInfo.cs
   - WordInfo.cs
+- Configuration
+  - OcrOptions.cs
+  - PdfOptions.cs
+  - UploadOptions.cs
+  - RateLimitOptions.cs
+  - ApiKeyOptions.cs
+- Middleware
+  - ApiKeyMiddleware.cs
 - Program.cs
+
+Las secciones de `appsettings.json` (`Ocr`, `Pdf`, `Upload`, `RateLimit`, `ApiKey`) se enlazan a clases de opciones tipadas (`IOptions<T>`) y se validan al arranque: un valor inválido (idioma vacío, número negativo, o `ApiKey:Enabled` sin claves) impide que el servicio inicie en lugar de fallar silenciosamente en tiempo de ejecución.
+
+El OCR del PDF se procesa en paralelo por página (`Parallel.ForEachAsync`, limitado al número de núcleos), y los endpoints de extracción están protegidos por un limitador de concurrencia que rechaza con HTTP 429 cuando se satura, y opcionalmente por autenticación con clave de API.
 
 ## Requisitos Previos
 - .NET 8

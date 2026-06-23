@@ -1,7 +1,9 @@
 using System.Text;
+using Makeos.Configuration;
 using Makeos.Services;
 using Makeos.Utilities;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Makeos.Tests
@@ -11,8 +13,10 @@ namespace Makeos.Tests
     // no toca código nativo y por tanto corre en cualquier CI.
     public class ImageExtractorServiceTests
     {
-        private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
-        private readonly ImageExtractorService _service = new(EmptyConfig, new TesseractEnginePool(EmptyConfig));
+        private static readonly IOptions<OcrOptions> OcrOpts = Options.Create(new OcrOptions());
+        private static readonly IOptions<UploadOptions> UploadOpts = Options.Create(new UploadOptions());
+        private readonly ImageExtractorService _service = new(
+            OcrOpts, UploadOpts, new TesseractEnginePool(OcrOpts), NullLogger<ImageExtractorService>.Instance);
 
         [Fact]
         public async Task ExtractTextAsync_NullFile_ThrowsArgumentException()
@@ -45,6 +49,18 @@ namespace Makeos.Tests
 
             var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.ExtractTextAsync(file));
             Assert.Contains("contenido", ex.Message);
+        }
+
+        [Fact]
+        public async Task ExtractTextAsync_FileExceedsSizeLimit_ThrowsArgumentException()
+        {
+            var smallLimit = Options.Create(new UploadOptions { MaxFileSizeBytes = 5 });
+            var service = new ImageExtractorService(
+                OcrOpts, smallLimit, new TesseractEnginePool(OcrOpts), NullLogger<ImageExtractorService>.Instance);
+            var file = TestFiles.Create(Encoding.ASCII.GetBytes("contenido mas largo que el limite"), "imagen.png", "image/png");
+
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.ExtractTextAsync(file));
+            Assert.Contains("tamaño máximo", ex.Message);
         }
     }
 }

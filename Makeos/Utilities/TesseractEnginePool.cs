@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using Makeos.Configuration;
+using Microsoft.Extensions.Options;
 using Tesseract;
 
 namespace Makeos.Utilities
@@ -26,10 +28,10 @@ namespace Makeos.Utilities
         private readonly ConcurrentDictionary<string, ConcurrentQueue<TesseractEngine>> _idle = new();
         private volatile bool _disposed;
 
-        public TesseractEnginePool(IConfiguration configuration)
+        public TesseractEnginePool(IOptions<OcrOptions> options)
         {
             // 0 o ausente => valor por defecto basado en los núcleos disponibles.
-            var configured = configuration.GetValue<int?>("Ocr:MaxPoolSize") ?? 0;
+            var configured = options.Value.MaxPoolSize;
             _maxIdlePerLanguage = configured > 0 ? configured : Environment.ProcessorCount;
         }
 
