@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Makeos.Configuration;
+using Makeos.Middleware;
 using Makeos.Services;
 using Makeos.Utilities;
 using Microsoft.AspNetCore.Http.Features;
@@ -31,10 +32,19 @@ builder.Services.AddOptions<RateLimitOptions>()
     .Bind(builder.Configuration.GetSection(RateLimitOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddOptions<ApiKeyOptions>()
+    .Bind(builder.Configuration.GetSection(ApiKeyOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(o => !o.Enabled || o.Keys.Any(k => !string.IsNullOrWhiteSpace(k)),
+        "ApiKey:Enabled es true pero no se configuró ninguna clave en ApiKey:Keys.")
+    .ValidateOnStart();
 
 // Limitación de concurrencia para los endpoints de extracción: el OCR es intensivo en
 // CPU, así que se acota cuántas peticiones se procesan a la vez para que un pico no
 // agote el servicio. Las que exceden cola se rechazan con HTTP 429.
+var apiKey = builder.Configuration.GetSection(ApiKeyOptions.SectionName)
+    .Get<ApiKeyOptions>() ?? new ApiKeyOptions();
+
 var rateLimit = builder.Configuration.GetSection(RateLimitOptions.SectionName)
     .Get<RateLimitOptions>() ?? new RateLimitOptions();
 if (rateLimit.Enabled)
@@ -87,6 +97,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+
+// La autenticación se valida antes del rate limiter para que una petición no autorizada
+// no consuma un cupo de concurrencia.
+if (apiKey.Enabled)
+{
+    app.UseMiddleware<ApiKeyMiddleware>();
+}
 
 if (rateLimit.Enabled)
 {
